@@ -9,6 +9,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.tools import tool
 from langchain_core.messages import AIMessage
 from langgraph.graph.message import add_messages
+from langgraph.checkpoint.memory import MemorySaver
 
 load_dotenv()
 
@@ -31,6 +32,8 @@ def multiply(a: int, b: int) -> int:
 
 
 tools = [multiply]
+config = {"configurable": {"thread_id": "1"}}
+memory = MemorySaver()
 llm = ChatOpenAI(model="gpt-4o-mini", api_key=openai_api_key)
 llm_with_tools = llm.bind_tools(tools=tools)
 
@@ -51,7 +54,7 @@ graph_builder.add_edge("tools", "chatbot")
 # graph_builder.add_edge("chatbot", END)
 
 # compile
-graph = graph_builder.compile()
+graph = graph_builder.compile(checkpointer=memory)
 
 # png_data = graph.get_graph().draw_mermaid_png()
 # image = PILImage.open(io.BytesIO(png_data))
@@ -59,7 +62,7 @@ graph = graph_builder.compile()
 
 
 def stream_graph_updates(query: str):
-    for event in graph.stream({"messages": [{"role": "user", "content": query}]}):
+    for event in graph.stream({"messages": [{"role": "user", "content": query}]}, config=config):
         for value in event.values():
             if type(value["messages"][0]) is AIMessage and value["messages"][-1].content:
                 print("> Assistant: ", value["messages"][-1].content)
