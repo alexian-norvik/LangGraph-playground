@@ -62,7 +62,15 @@ graph = graph_builder.compile(checkpointer=memory)
 
 
 def stream_graph_updates(query: str):
-    for event in graph.stream({"messages": [{"role": "user", "content": query}]}, config=config):
+    for event in graph.stream(
+        {
+            "messages": [
+                {"role": "system", "content": "You are an helpful assistant."},
+                {"role": "user", "content": query},
+            ]
+        },
+        config=config,
+    ):
         for value in event.values():
             if type(value["messages"][0]) is AIMessage and value["messages"][-1].content:
                 print("> Assistant: ", value["messages"][-1].content)
