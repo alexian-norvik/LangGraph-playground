@@ -2,9 +2,12 @@ import os
 from typing import Annotated
 
 from dotenv import load_dotenv
-from langgraph.graph import END, START, StateGraph
+from langgraph.graph import START, StateGraph
 from langchain_openai import ChatOpenAI
 from typing_extensions import TypedDict
+from langgraph.prebuilt import ToolNode, tools_condition
+from langchain_core.tools import tool
+from langchain_core.messages import AIMessage
 from langgraph.graph.message import add_messages
 
 load_dotenv()
@@ -16,20 +19,36 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 
+@tool
+def multiply(a: int, b: int) -> int:
+    """
+    multiply provided two digits together
+    :param a: first digit
+    :param b: second digit
+    :return: result of the multiplication
+    """
+    return a * b
+
+
+tools = [multiply]
 llm = ChatOpenAI(model="gpt-4o-mini", api_key=openai_api_key)
+llm_with_tools = llm.bind_tools(tools=tools)
 
 
 def chatbot(state: State):
-    return {"messages": [llm.invoke(state["messages"])]}
+    return {"messages": [llm_with_tools.invoke(state["messages"])]}
 
 
 # build graph
 graph_builder = StateGraph(State)
 graph_builder.add_node("chatbot", chatbot)
+graph_builder.add_node("tools", ToolNode(tools))
 
 # Logic
 graph_builder.add_edge(START, "chatbot")
-graph_builder.add_edge("chatbot", END)
+graph_builder.add_conditional_edges("chatbot", tools_condition)
+graph_builder.add_edge("tools", "chatbot")
+# graph_builder.add_edge("chatbot", END)
 
 # compile
 graph = graph_builder.compile()
@@ -42,7 +61,8 @@ graph = graph_builder.compile()
 def stream_graph_updates(query: str):
     for event in graph.stream({"messages": [{"role": "user", "content": query}]}):
         for value in event.values():
-            print("> Assistant: ", value["messages"][-1].content)
+            if type(value["messages"][0]) is AIMessage and value["messages"][-1].content:
+                print("> Assistant: ", value["messages"][-1].content)
 
 
 while True:
