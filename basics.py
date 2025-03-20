@@ -12,15 +12,15 @@ class State(TypedDict):
 
 
 def node_1(state):
-    return f"graph state: {state['graph_state']} I am"
+    return {"graph_state": f"{state['graph_state']} I am"}
 
 
 def node_2(state):
-    return f"graph state: {state['graph_state']} happy!"
+    return {"graph_state": f"{state['graph_state']} Happy!"}
 
 
 def node_3(state):
-    return f"graph state: {state['graph_state']} sad."
+    return {"graph_state": f"{state['graph_state']} sad"}
 
 
 def decide_mode(state) -> Literal["node_2", "node_3"]:
@@ -44,7 +44,6 @@ builder.add_conditional_edges("node_1", decide_mode)
 builder.add_edge("node_2", END)
 builder.add_edge("node_3", END)
 
-
 # Add
 graph = builder.compile()
 
@@ -56,3 +55,7 @@ image = PILImage.open(io.BytesIO(png_data))
 # Save the graph as png file
 with open("graph.png", mode="wb") as image_file:
     image_file.write(png_data)
+
+response = graph.invoke({"graph_state": "Hi, this is Lance."})
+
+print(response)
